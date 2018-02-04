@@ -1,0 +1,83 @@
+apply plugin: 'jacoco' 
+jacoco { 
+    toolVersion = "0.7.5.201505241946" 
+} 
+project.afterEvaluate { 
+    def buildTypes = android.buildTypes.collect { type -> 
+        type.name 
+    } 
+    def dimensions = android.flavorDimensionList
+    def productFlavors = []
+    def productProduct
+    dimensions.each { dimension ->
+        productFlavors <<  android.productFlavors.findResults { flavor -> 
+            flavor.dimension == dimension ? flavor.name : null 
+        }
+    } 
+    productProduct = productFlavors[0]
+    for (int i = 1; i < productFlavors.size(); i++) {
+            productProduct = productProduct.collectMany { a -> productFlavors[i].collect{b->a+(b.capitalize())}}
+    }
+    productProduct = productProduct.findAll { product ->
+        return android.unitTestVariants.find { variant ->
+            if (product.contains(variant.flavorName)) {
+                return true
+            }
+        }
+    }
+    
+    // When no product flavors defined, use empty 
+    if (!productProduct) productProduct.add('') 
+    productProduct.each { productFlavorName -> 
+        buildTypes.each { buildTypeName -> 
+            def sourceName, sourcePath 
+            if (!productFlavorName) { 
+                sourceName = sourcePath = "${buildTypeName}" 
+            } else { 
+                sourceName = "${productFlavorName}${buildTypeName.capitalize()}" 
+                sourcePath = "${productFlavorName}/${buildTypeName}" 
+            } 
+            def testTaskName = "test${sourceName.capitalize()}UnitTest" 
+            // Create coverage task of form 'testFlavorTypeCoverage' depending on 'testFlavorTypeUnitTest' 
+            task "${testTaskName}Coverage" (type:JacocoReport, dependsOn: "$testTaskName") { 
+                group = "Reporting" 
+                description = "Generate Jacoco coverage reports on the ${sourceName.capitalize()} build." 
+                def debugTree = fileTree( 
+                        dir: "${project.buildDir}/intermediates/classes/${sourcePath}", 
+                        excludes: [
+                            '**/R.class', 
+                            '**/R$*.class', 
+                            '**/*$ViewInjector*.*', 
+                            '**/*$ViewBinder*.*', 
+                            '**/BuildConfig.*', 
+                            '**/Manifest*.*'
+                        ] 
+                ) 
+		def kotlinDebugTree = fileTree( 
+                        dir: "${project.buildDir}/tmp/kotlin-classes/${sourceName}", 
+                        excludes: [
+                            '**/R.class', 
+                            '**/R$*.class', 
+                            '**/*$ViewInjector*.*', 
+                            '**/*$ViewBinder*.*', 
+                            '**/BuildConfig.*', 
+                            '**/Manifest*.*'
+                        ] 
+                ) 
+		classDirectories = files([debugTree], [kotlinDebugTree])
+                def coverageSourceDirs = [ 
+                        "src/main/java", 
+                        "src/$productFlavorName/java", 
+                        "src/$buildTypeName/java" 
+                ] 
+                additionalSourceDirs = files(coverageSourceDirs) 
+                sourceDirectories = files(coverageSourceDirs) 
+                executionData = files("${project.buildDir}/jacoco/${testTaskName}.exec") 
+                reports { 
+                    xml.enabled = true 
+                    html.enabled = true 
+                } 
+            } 
+        } 
+    } 
+}
