@@ -31,5 +31,4 @@ before_script:
 script:
   - ./gradlew build testDebugUnitTestCoverage assembleAndroidTest connectedCheck
 after_success:
-  - head app/build/reports/jacoco/testDebugUnitTestCoverage/testDebugUnitTestCoverage.xml
-  - bash <(curl -s https://codecov.io/bash)
+  - ./codecov -f app/build/reports/jacoco/testDebugUnitTestCoverage/testDebugUnitTestCoverage.xml
