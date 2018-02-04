@@ -14,4 +14,11 @@ class ExampleUnitTest {
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
     }
+
+    @Test
+    fun level_progressions_init() {
+        var level_progressions = WaniKaniService.LevelProgressions()
+        level_progressions.url = "google.com"
+        assertEquals("google.com", level_progressions.url)
+    }
 }
